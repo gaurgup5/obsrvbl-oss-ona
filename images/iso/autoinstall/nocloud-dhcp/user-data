@@ -2,16 +2,38 @@
 # https://ubuntu.com/server/docs/install/autoinstall-reference
 autoinstall:
   version: 1
+  locale: en_US
+
+  interactive-sections:
+   - network
+   - identity
+   - locale
+   - keyboard
+
+  keyboard:
+    layout: us
+  
+  apt:
+    disable_suites:
+      - backports
+    fallback: offline-install
+    preserve_sources_list: false
+    
+  
+  codecs:
+    install: false
+  drivers:
+    install: false
+
+  source:
+      search_drivers: false
+      id: ubuntu-server
 
   storage:
     layout:
       name: lvm
 
-  network:
-    version: 2
-    ethernets:
-      enp0s3:
-        dhcp4: true
+  
 
   identity:
     realname: 'Ubuntu ONA User'
@@ -19,33 +41,45 @@ autoinstall:
     password: '$y$j9T$vTPss2y8DIwI64Qhspa2u1$0WErBalivR6wnQ82NIMmjzQDEEr7m6vfsESbVLzgwa1'
     hostname: ona-default
 
+  user-data:
+    preserve_hostname: true
+    hostname: ona-default
+    package_update: false
+    package_upgrade: false
+    timezone: America/New_York
+
+    users:
+      - name: ubuntu
+        groups: [adm, cdrom, dip, plugdev, lxd, sudo]
+        lock-passwd: false
+        sudo: ALL=(ALL) NOPASSWD:ALL
+        shell: /bin/bash
   locale: en_US.UTF-8
   timezone: UTC
 
   ssh:
     install-server: true
+    allow-pw: true
+    ssh_pwauth: true
+  
+  resize_rootfs: false
 
   # iptables-persistent settings
   early-commands:
     - echo 'iptables-persistent iptables-persistent/autosave_v6 boolean false' | debconf-set-selections
     - echo 'iptables-persistent iptables-persistent/autosave_v4 boolean false' | debconf-set-selections
 
-  packages:
-    - apt-transport-https
-    - iptables-persistent
-    - ipset
-    - libjansson4
-    - libltdl7
-    - liblzo2-2
-    - libnet1
-    - libyaml-0-2
-    - nano
-    - ntp
-    - ntpdate
-    - snmp
-    - tcpdump
-    - net-tools
+ 
 
   late-commands:
+    - rm -r /target/var/cache/apt
+    - cp -r /cdrom/apt /target/var/cache/
+    - curtin in-target --target /target -- apt-get -yy install apt-transport-https iptables-persistent ipset libjansson4 libltdl7 liblzo2-2 libnet1 libyaml-0-2 nano ntp ntpdate snmp tcpdump net-tools libsnappy1v5
+    - |
+      if [ -d /sys/firmware/efi ]; then
+        apt-get install -y efibootmgr
+        efibootmgr -o $(efibootmgr | perl -n -e '/Boot(.+)\* ubuntu/ && print $1')
+      fi
     - cp -r /cdrom/ona/ /target/root/
     - curtin in-target --target=/target -- bash -xv /root/ona/configure.sh
+

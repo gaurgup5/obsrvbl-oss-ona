@@ -17,8 +17,11 @@ $ ./build_iso_helper --doctests
 
 Real results as of February 2022:
 
+>>> get_iso_url('24.04', subiquity=True)
+https://releases.ubuntu.com/noble/ubuntu-24.04.1-live-server-amd64.iso
+
 >>> get_iso_url('22.04', subiquity=True)
-'https://releases.ubuntu.com/20.04/ubuntu-20.04.3-live-server-amd64.iso'
+'https://releases.ubuntu.com/jammy/ubuntu-22.04.4-live-server-amd64.iso'
 
 >>> get_iso_url('20.04.3', subiquity=True)
 'https://releases.ubuntu.com/20.04/ubuntu-20.04.3-live-server-amd64.iso'

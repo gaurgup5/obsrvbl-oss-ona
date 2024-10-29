@@ -21,7 +21,7 @@
 #    wrong.
 #
 
-RELEASE="${RELEASE:-22.04.4}"
+RELEASE="${RELEASE:-24.04.1}"
 ARCH="${ARCH:-amd64}"
 VARIANT="${VARIANT:-subiquity}"
 
@@ -45,19 +45,32 @@ while getopts "f:a:r:" opt ; do
            ;;
     esac
 done
+# Newly added
+ ubuntu_name="ubuntu-${RELEASE}-live-server-${ARCH}.iso"
+ ona_name="ona-${RELEASE}-server-${ARCH}.iso"
+ ubuntu_url="${url:-$($DIR/build_iso_helper $RELEASE $VARIANT)}"
 
-ubuntu_name="ubuntu-${RELEASE}-server-${ARCH}.iso"
-ona_name="ona-${RELEASE}-server-${ARCH}.iso"
-ubuntu_url="${url:-$($DIR/build_iso_helper $RELEASE $VARIANT)}"
-test -n "$ubuntu_url" || fatal "failed getting Ubuntu ISO download URL"
-
+# ubuntu_name="ubuntu-24.04.1-live-server-amd64.iso"
+# ona_name="ona-${RELEASE}-server-${ARCH}.iso"
 ONA_URL="https://s3.amazonaws.com/onstatic/ona-service/master/"
 if [ -n "$PUBLIC_ONA" ]; then
   ONA_URL="https://assets-production.obsrvbl.com/ona-packages/obsrvbl-ona/v5.1.2/"
 fi
+# netsa_pkg_name="netsa-pkg.deb"
+ona_pkg_name="ona-service_UbuntuXenial_amd64.deb"
 
-ona_service_url="${ONA_URL}ona-service_UbuntuXenial_amd64.deb"
-netsa_pkg_url="https://assets-production.obsrvbl.com/ona-packages/netsa/v0.1.27/netsa-pkg.deb"
+test -n "$ubuntu_url" || fatal "failed getting Ubuntu ISO download URL"
+
+ ONA_URL="https://s3.amazonaws.com/onstatic/ona-service/master/"
+ if [ -n "$PUBLIC_ONA" ]; then
+   ONA_URL="https://assets-production.obsrvbl.com/ona-packages/obsrvbl-ona/v5.1.2/"
+             
+ fi
+
+ ona_service_url="${ONA_URL}ona-service_UbuntuXenial_amd64.deb"
+ netsa_pkg_url="https://assets-production.obsrvbl.com/ona-packages/netsa/v0.1.27/netsa-pkg.deb"
+
+ 
 
 shift $(($OPTIND-1))
 
@@ -90,24 +103,40 @@ fi
   fi
   
   cd "$DIR"/working
+  #[[ -d "$DIR/local_files/" ]] && cp "$DIR"/local_files/* .
   curl -L -o netsa-pkg.deb "${netsa_pkg_url}"
-  curl -L -o ona-service.deb "${ona_service_url}"
+  curl -L -o "${ona_pkg_name}" "${ona_service_url}"
+
+
+
+
+
+$sudo apt-get -y update
+# you can install packages here if you want
+
+PACKAGES="apt-transport-https iptables-persistent ipset libjansson4 libltdl7 liblzo2-2 libnet1 libyaml-0-2 nano ntp ntpdate snmp tcpdump net-tools libsnappy1v5"
+$sudo apt-get -yyqq install --download-only ${PACKAGES}
+
+
+
+
   # local is root dir in ISO
   mkdir cdrom local
+  pwd
 
-  $sudo mount -o loop --read-only "../${ubuntu_name}" cdrom
+  $sudo mount -o loop --read-only "../../${ubuntu_name}" cdrom
   rsync -av --quiet cdrom/ local
 
+  $sudo cp -r /var/cache/apt local
   $sudo cp -r ../ona local
   $sudo cp netsa-pkg.deb local/ona/netsa-pkg.deb
-  $sudo cp ona-service.deb local/ona/ona-service.deb
+  $sudo cp ${ona_pkg_name} local/ona/${ona_pkg_name}
 
   echo "New format: $NEW_FORMAT "
   if [ -n "$NEW_FORMAT" ]; then
     # copy autoinstall folders for grub
     $sudo cp -r ../autoinstall/nocloud-dhcp  local/
-    $sudo cp -r ../autoinstall/nocloud-nodhcp  local/
-    $sudo cp ../isolinux/grub-new-format.cfg local/boot/grub/grub.cfg
+    $sudo cp ../isolinux/grub.cfg local/boot/grub/grub.cfg
   else
     $sudo cp ../preseed/* local/preseed/
     $sudo cp ../isolinux/txt.cfg local/isolinux/txt.cfg
@@ -117,11 +146,11 @@ fi
   if [ -n "$NEW_FORMAT" ]; then
     xorriso -as mkisofs -r  -V 'SWC Sensor Install CD' \
       -o "../${ona_name}"\
-      --grub2-mbr --interval:local_fs:0s-15s:zero_mbrpt,zero_gpt:"../${ubuntu_name}" \
+      --grub2-mbr --interval:local_fs:0s-15s:zero_mbrpt,zero_gpt:"../../${ubuntu_name}" \
       -partition_offset 16 \
       --mbr-force-bootable \
       -append_partition 2 0xef \
-      --interval:local_fs:4099440d-4109507d::"../${ubuntu_name}" \
+      --interval:local_fs:4099440d-4109507d::"../../${ubuntu_name}" \
       -appended_part_as_gpt \
       -c "${BOOT_CAT}" \
       -b "${ELTORITO}" \
